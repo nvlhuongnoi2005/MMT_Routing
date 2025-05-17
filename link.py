@@ -80,3 +80,11 @@ class Link:
             self.l12 = c * self.latency_multiplier
         elif src == self.e2:
             self.l21 = c * self.latency_multiplier
+
+    def get_other_side(link, addr):
+        if addr == link.e1:
+            return link.e2
+        elif addr == link.e2:
+            return link.e1
+        else:
+            return None
