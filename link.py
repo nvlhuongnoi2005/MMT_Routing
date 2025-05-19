@@ -18,7 +18,7 @@ class Link:
     """
 
     def __init__(self, e1, e2, l12, l21, latency):
-        self.q12 = queue.Queue()
+        self.q12 = queue.Queue()    
         self.q21 = queue.Queue()
         self.l12 = l12 * latency
         self.l21 = l21 * latency
@@ -80,3 +80,11 @@ class Link:
             self.l12 = c * self.latency_multiplier
         elif src == self.e2:
             self.l21 = c * self.latency_multiplier
+
+    def get_other_side(link, addr):
+        if addr == link.e1:
+            return link.e2
+        elif addr == link.e2:
+            return link.e1
+        else:
+            return None
