@@ -1,4 +1,4 @@
-####################################################
+#####################################################
 # LSrouter.py
 # Name:
 # HUID:
@@ -13,7 +13,7 @@ class LSrouter(Router):
     """Link state routing protocol implementation."""
 
     def __init__(self, addr, heartbeat_time):
-        super().__init__(addr)  # DO NOT REMOVE
+        super().__init__(addr)
         self.heartbeat_time = heartbeat_time
         self.last_time = 0
         self.addr = addr
@@ -27,6 +27,7 @@ class LSrouter(Router):
             }
         }
         self.forwarding_table = {}
+        self.port_to_neighbor = {}
 
     def handle_packet(self, port, packet):
         """Process incoming packet."""
@@ -34,27 +35,33 @@ class LSrouter(Router):
             if packet.dst_addr in self.forwarding_table:
                 out_port = self.forwarding_table[packet.dst_addr]
                 self.send(out_port, packet)
-        else:
-            try:
-                content = json.loads(packet.content)
-                origin = packet.src_addr
-                seq = content["seq"]
-                neighbors = content["neighbors"]
-            except Exception:
-                return
+            return
 
-            if (origin not in self.lsdb) or (seq > self.lsdb[origin]["seq"]):
-                self.lsdb[origin] = {"neighbors": neighbors, "seq": seq}
+        try:
+            content = json.loads(packet.content)
+            origin = packet.src_addr
+            seq = content["seq"]
+            neighbors = content["neighbors"]
+        except Exception:
+            return
 
-                for p in self.links:
-                    if p != port:
-                        self.send(p, Packet(Packet.ROUTING, self.addr, None, packet.content))
+        if (origin not in self.lsdb) or (seq > self.lsdb[origin]["seq"]):
+            self.lsdb[origin] = {
+                "neighbors": neighbors,
+                "seq": seq
+            }
 
-                self._recompute_routes()
+            for p in self.links:
+                if p != port:
+                    self.send(p, Packet(Packet.ROUTING, origin, None, packet.content))
+
+            self._recompute_routes()
 
     def handle_new_link(self, port, endpoint, cost):
         """Handle new link."""
         self.neighbors[endpoint] = cost
+        self.port_to_neighbor[port] = endpoint
+
         self.lsdb[self.addr]["neighbors"] = dict(self.neighbors)
         self.sequence_number += 1
         self.lsdb[self.addr]["seq"] = self.sequence_number
@@ -118,15 +125,12 @@ class LSrouter(Router):
             next_hop = dest
             while prev.get(next_hop) != self.addr:
                 next_hop = prev[next_hop]
-            for port, link in self.links.items():
-                if link.get_other_side(self.addr) == next_hop:
+            for port, neighbor in self.port_to_neighbor.items():
+                if neighbor == next_hop:
                     new_table[dest] = port
                     break
 
         self.forwarding_table = new_table
-    
+
     def __repr__(self):
-        """Representation for debugging in the network visualizer."""
-        # TODO
-        #   NOTE This method is for your own convenience and will not be graded
         return f"LSrouter(addr={self.addr})"
